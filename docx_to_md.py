@@ -3,8 +3,26 @@ from docx.oxml.ns import qn
 
 
 def convert_document(doc: Document) -> str:
-    paragraphs = [_convert_paragraph(p) for p in doc.paragraphs]
-    return "\n".join(paragraphs)
+    lines = []
+    body = doc.element.body
+
+    para_by_elem = {p._element: p for p in doc.paragraphs}
+    table_by_elem = {t._tbl: t for t in doc.tables}
+
+    for child in body:
+        if child.tag == qn('w:p'):
+            p = para_by_elem.get(child)
+            if p is not None:
+                lines.append(_convert_paragraph(p))
+        elif child.tag == qn('w:tbl'):
+            table = table_by_elem.get(child)
+            if table is not None:
+                if _is_simple_table(table):
+                    lines.append(_convert_table_pipe(table))
+                else:
+                    lines.append(_convert_table_html(table))
+
+    return "\n".join(lines)
 
 
 def _convert_paragraph(p) -> str:

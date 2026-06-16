@@ -156,6 +156,43 @@ def test_html_table_no_header():
     assert result.count("<td>") == 4
 
 
+def test_mixed_content():
+    doc = Document()
+    doc.add_heading("Report", level=1)
+    table = doc.add_table(rows=2, cols=2)
+    table.cell(0, 0).text = "X"
+    table.cell(0, 1).text = "Y"
+    table.cell(1, 0).text = "1"
+    table.cell(1, 1).text = "2"
+    doc.add_paragraph("Footer text")
+    result = convert_document(doc)
+    assert result.startswith("# Report\n")
+    assert "| X | Y |" in result
+    assert result.strip().endswith("Footer text")
+
+
+def test_complex_table_uses_html():
+    from docx.oxml.ns import qn
+    doc = Document()
+    doc.add_paragraph("Before")
+    table = doc.add_table(rows=2, cols=2)
+    cell = table.cell(0, 0)
+    tc = cell._tc
+    tcPr = tc.find(qn('w:tcPr'))
+    if tcPr is None:
+        tcPr = tc.makeelement(qn('w:tcPr'), {})
+        tc.insert(0, tcPr)
+    gs = tcPr.makeelement(qn('w:gridSpan'), {qn('w:val'): '2'})
+    tcPr.append(gs)
+    table.cell(1, 0).text = "A"
+    table.cell(1, 1).text = "B"
+    doc.add_paragraph("After")
+    result = convert_document(doc)
+    assert "Before" in result
+    assert "<table>" in result
+    assert "After" in result
+
+
 def test_pipe_table_empty_cell():
     doc = Document()
     table = doc.add_table(rows=2, cols=3)
