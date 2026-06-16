@@ -94,3 +94,37 @@ def test_table_with_colspan_is_complex():
     table = doc.tables[0]
     from docx_to_md import _is_simple_table
     assert _is_simple_table(table) is False
+
+
+def test_pipe_table():
+    doc = Document()
+    table = doc.add_table(rows=3, cols=2)
+    table.cell(0, 0).text = "Name"
+    table.cell(0, 1).text = "Age"
+    table.cell(1, 0).text = "Alice"
+    table.cell(1, 1).text = "30"
+    table.cell(2, 0).text = "Bob"
+    table.cell(2, 1).text = "25"
+    from docx_to_md import _convert_table_pipe
+    result = _convert_table_pipe(table)
+    expected = (
+        "| Name  | Age |\n"
+        "| ----- | --- |\n"
+        "| Alice | 30  |\n"
+        "| Bob   | 25  |\n"
+    )
+    assert result == expected
+
+
+def test_pipe_table_empty_cell():
+    doc = Document()
+    table = doc.add_table(rows=2, cols=3)
+    table.cell(0, 0).text = "A"
+    table.cell(0, 1).text = ""
+    table.cell(0, 2).text = "C"
+    table.cell(1, 0).text = "1"
+    table.cell(1, 1).text = "2"
+    table.cell(1, 2).text = "3"
+    from docx_to_md import _convert_table_pipe
+    result = _convert_table_pipe(table)
+    assert "| A |   | C |" in result
