@@ -104,3 +104,96 @@ def _convert_table_pipe(table) -> str:
 
 def _cell_text(cell) -> str:
     return " ".join(p.text or "" for p in cell.paragraphs).strip()
+
+
+def _get_colspan(cell) -> int:
+    tc = cell._tc
+    tc_pr = tc.find(qn('w:tcPr'))
+    if tc_pr is None:
+        return 1
+    gs = tc_pr.find(qn('w:gridSpan'))
+    if gs is None:
+        return 1
+    return int(gs.get(qn('w:val'), 1))
+
+
+def _has_rowspan_restart(cell) -> bool:
+    tc = cell._tc
+    tc_pr = tc.find(qn('w:tcPr'))
+    if tc_pr is None:
+        return False
+    vm = tc_pr.find(qn('w:vMerge'))
+    if vm is None:
+        return False
+    val = vm.get(qn('w:val'))
+    return val == "restart"
+
+
+def _is_rowspan_continue(cell) -> bool:
+    tc = cell._tc
+    tc_pr = tc.find(qn('w:tcPr'))
+    if tc_pr is None:
+        return False
+    vm = tc_pr.find(qn('w:vMerge'))
+    if vm is None:
+        return False
+    val = vm.get(qn('w:val'))
+    return val is None
+
+
+def _count_rowspan(table, start_row_idx, col_idx) -> int:
+    count = 1
+    for row_idx in range(start_row_idx + 1, len(table.rows)):
+        row = table.rows[row_idx]
+        cells = row.cells
+        if col_idx < len(cells) and _is_rowspan_continue(cells[col_idx]):
+            count += 1
+        else:
+            break
+    return count
+
+
+def _escape_html(text: str) -> str:
+    return (
+        text.replace("&", "&amp;")
+            .replace("<", "&lt;")
+            .replace(">", "&gt;")
+    )
+
+
+def _convert_table_html(table) -> str:
+    lines = ["<table>"]
+    rowspan_skip = {}
+
+    for row_idx, row in enumerate(table.rows):
+        lines.append("<tr>")
+        skip_cols = set()
+        for c in list(rowspan_skip.keys()):
+            rowspan_skip[c] -= 1
+            if rowspan_skip[c] <= 0:
+                del rowspan_skip[c]
+            else:
+                skip_cols.add(c)
+        col_idx = 0
+        cell_idx = 0
+        while cell_idx < len(row.cells):
+            if col_idx in skip_cols:
+                col_idx += 1
+                continue
+            cell = row.cells[cell_idx]
+            colspan = _get_colspan(cell)
+            text = _cell_text(cell)
+            attrs = ""
+            if colspan > 1:
+                attrs += f' colspan="{colspan}"'
+            if _has_rowspan_restart(cell):
+                rs = _count_rowspan(table, row_idx, cell_idx)
+                if rs > 1:
+                    attrs += f' rowspan="{rs}"'
+                    rowspan_skip[col_idx] = rs
+            lines.append(f"  <td{attrs}>{_escape_html(text)}</td>")
+            col_idx += colspan
+            cell_idx += 1
+        lines.append("</tr>")
+    lines.append("</table>")
+    return "\n".join(lines) + "\n"

@@ -116,6 +116,46 @@ def test_pipe_table():
     assert result == expected
 
 
+def test_html_table_with_colspan():
+    from docx.oxml.ns import qn
+    doc = Document()
+    table = doc.add_table(rows=2, cols=3)
+    # Merge first two cells in row 0
+    cell = table.cell(0, 0)
+    tc = cell._tc
+    tcPr = tc.find(qn('w:tcPr'))
+    if tcPr is None:
+        tcPr = tc.makeelement(qn('w:tcPr'), {})
+        tc.insert(0, tcPr)
+    gridSpan = tcPr.makeelement(qn('w:gridSpan'), {qn('w:val'): '2'})
+    tcPr.append(gridSpan)
+    table.cell(0, 2).text = "C"
+    table.cell(1, 0).text = "D"
+    table.cell(1, 1).text = "E"
+    table.cell(1, 2).text = "F"
+
+    from docx_to_md import _convert_table_html
+    result = _convert_table_html(table)
+
+    assert "<table>" in result
+    assert "colspan=\"2\"" in result
+    assert result.strip().endswith("</table>")
+
+
+def test_html_table_no_header():
+    doc = Document()
+    table = doc.add_table(rows=2, cols=2)
+    table.cell(0, 0).text = "A"
+    table.cell(0, 1).text = "B"
+    table.cell(1, 0).text = "C"
+    table.cell(1, 1).text = "D"
+    from docx_to_md import _convert_table_html
+    result = _convert_table_html(table)
+    assert "<table>" in result
+    assert result.count("<tr>") == 2
+    assert result.count("<td>") == 4
+
+
 def test_pipe_table_empty_cell():
     doc = Document()
     table = doc.add_table(rows=2, cols=3)
