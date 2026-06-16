@@ -193,6 +193,30 @@ def test_complex_table_uses_html():
     assert "After" in result
 
 
+def test_cli_conversion(tmp_path):
+    from docx_to_md import convert_docx_to_markdown
+
+    doc = Document()
+    doc.add_heading("Test", level=1)
+    doc.add_paragraph("Hello world")
+    table = doc.add_table(rows=2, cols=2)
+    table.cell(0, 0).text = "Key"
+    table.cell(0, 1).text = "Value"
+    table.cell(1, 0).text = "A"
+    table.cell(1, 1).text = "1"
+
+    input_path = tmp_path / "test.docx"
+    doc.save(str(input_path))
+    output_path = tmp_path / "test.md"
+
+    convert_docx_to_markdown(input_path, output_path)
+
+    content = output_path.read_text(encoding="utf-8")
+    assert "# Test" in content
+    assert "Hello world" in content
+    assert "| Key | Value |" in content
+
+
 def test_pipe_table_empty_cell():
     doc = Document()
     table = doc.add_table(rows=2, cols=3)

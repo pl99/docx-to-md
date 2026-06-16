@@ -1,3 +1,6 @@
+import sys
+from pathlib import Path
+
 from docx import Document
 from docx.oxml.ns import qn
 
@@ -215,3 +218,38 @@ def _convert_table_html(table) -> str:
         lines.append("</tr>")
     lines.append("</table>")
     return "\n".join(lines) + "\n"
+
+
+def convert_docx_to_markdown(input_path: Path, output_path: Path) -> None:
+    if not input_path.exists():
+        raise FileNotFoundError(f"Файл не найден: {input_path}")
+
+    if input_path.suffix.lower() != ".docx":
+        raise ValueError("Поддерживается только формат .docx")
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    doc = Document(str(input_path))
+    md_content = convert_document(doc)
+
+    output_path.write_text(md_content, encoding="utf-8")
+
+
+def main():
+    if len(sys.argv) != 3:
+        print("Usage: python docx_to_md.py input.docx output.md")
+        sys.exit(1)
+
+    input_file = Path(sys.argv[1])
+    output_file = Path(sys.argv[2])
+
+    try:
+        convert_docx_to_markdown(input_file, output_file)
+        print(f"Успешно сконвертировано: {output_file}")
+    except Exception as e:
+        print(f"Ошибка: {e}")
+        sys.exit(2)
+
+
+if __name__ == "__main__":
+    main()
