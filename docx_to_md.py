@@ -41,3 +41,19 @@ def _extract_inline_text(p) -> str:
             text = f"_{text}_"
         parts.append(text)
     return "".join(parts)
+
+
+def _is_simple_table(table) -> bool:
+    """Table is simple if it has no colspan/rowspan in any cell."""
+    for row in table.rows:
+        for cell in row.cells:
+            tc = cell._tc
+            tc_pr = tc.find(qn('w:tcPr'))
+            if tc_pr is not None:
+                # colspan
+                if tc_pr.find(qn('w:gridSpan')) is not None:
+                    return False
+                # rowspan (vMerge)
+                if tc_pr.find(qn('w:vMerge')) is not None:
+                    return False
+    return True

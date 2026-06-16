@@ -46,3 +46,51 @@ def test_bold_and_italic():
     run3.italic = True
     result = convert_document(doc)
     assert result == "**bold text** and _italic text_\n"
+
+
+def _make_simple_table(doc):
+    """Helper to create a 3x2 table with a header row, no merged cells."""
+    table = doc.add_table(rows=3, cols=2)
+    table.cell(0, 0).text = "A"
+    table.cell(0, 1).text = "B"
+    table.cell(1, 0).text = "1"
+    table.cell(1, 1).text = "2"
+    table.cell(2, 0).text = "3"
+    table.cell(2, 1).text = "4"
+    return table
+
+
+def _make_complex_table_with_colspan(doc):
+    """Helper to create a table with colspan."""
+    from docx.oxml.ns import qn
+    table = doc.add_table(rows=2, cols=3)
+    table.cell(0, 0).text = "A merged"
+    table.cell(0, 2).text = "C"
+    table.cell(1, 0).text = "D"
+    table.cell(1, 1).text = "E"
+    table.cell(1, 2).text = "F"
+    # Set colspan on cell (0,0) to span 2 columns
+    tc = table.cell(0, 0)._tc
+    tcPr = tc.find(qn('w:tcPr'))
+    if tcPr is None:
+        tcPr = tc.makeelement(qn('w:tcPr'), {})
+        tc.insert(0, tcPr)
+    gridSpan = tcPr.makeelement(qn('w:gridSpan'), {qn('w:val'): '2'})
+    tcPr.append(gridSpan)
+    return table
+
+
+def test_table_is_simple():
+    doc = Document()
+    _make_simple_table(doc)
+    table = doc.tables[0]
+    from docx_to_md import _is_simple_table
+    assert _is_simple_table(table) is True
+
+
+def test_table_with_colspan_is_complex():
+    doc = Document()
+    _make_complex_table_with_colspan(doc)
+    table = doc.tables[0]
+    from docx_to_md import _is_simple_table
+    assert _is_simple_table(table) is False
